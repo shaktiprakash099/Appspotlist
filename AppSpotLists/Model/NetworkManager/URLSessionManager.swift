@@ -33,7 +33,7 @@ class URLSessionManager: NSObject {
     }
     
     //MARK: Post Request methos
-    func postRequest(with url: URL, body: String, completionHandler: @escaping (Data?, NSError?) -> Void) -> Void {
+    func postRequest(with url: URL, body: String, onSuccess:@escaping(Data)-> Void, onError:@escaping(Error)-> Void) {
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -41,38 +41,15 @@ class URLSessionManager: NSObject {
         urlRequest.setValue("json/application", forHTTPHeaderField: "Accept")
         urlRequest.httpBody = body.data(using: .utf8)
         
-        let  sessionTask = self.getSharedSession()
-        
-        sessionTask.dataTask(with: urlRequest) { (data, response, error) in
-            if error != nil {
-                completionHandler(nil, NSError.serviceError(error!.localizedDescription))
-                
-                return
-            }
-            
-            let httpResponse: HTTPURLResponse = response as! HTTPURLResponse
-            if httpResponse.statusCode == 200 {
-                completionHandler(data, nil)
-                
-            }
-            else {
-                switch (httpResponse.statusCode) {
-            
-                case 500:
-                    completionHandler(nil,NSError.internalServerError(errorCode: 500))
-                    break
-                default:
-                    completionHandler(nil, NSError.unknownError(errorCode: httpResponse.statusCode))
-                }
-                
-            }
-            }.resume()
-        sessionTask.finishTasksAndInvalidate()
-        
+        self.sessionTask(urlRequest: urlRequest, onSuccess: { (data) in
+            onSuccess(data)
+        }) { (error) in
+            onError(error)
+        }
     }
     
     //MARK: Post raw methods
-    func postRawRequest(with url: URL, body: Data, completionHandler: @escaping (Data?, NSError?) -> Void) -> Void {
+    func postRawRequest(with url: URL, body: Data, onSuccess:@escaping(Data)-> Void, onError:@escaping(Error)-> Void) {
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -80,73 +57,55 @@ class URLSessionManager: NSObject {
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = body
         
-        
-        let sessionTask = URLSession.shared
-        sessionTask.dataTask(with: urlRequest) { (data, response, error) in
-            if error != nil {
-                completionHandler(nil, NSError.serviceError(error!.localizedDescription))
-                return
-            }
-            
-            let httpResponse: HTTPURLResponse = response as! HTTPURLResponse
-            if httpResponse.statusCode == 200 {
-                completionHandler(data, nil)
-            }
-            else {
-                switch (httpResponse.statusCode) {
-              
-                case 500:
-                    completionHandler(nil,NSError.internalServerError(errorCode: 500))
-                    break
-                case 404:
-                    completionHandler(nil,NSError.nodataResponseError(errorCode: 404))
-                    break
-                case 400:
-                    completionHandler(nil,NSError.nodataResponseError(errorCode: 400))
-                    break
-                default:
-                    completionHandler(nil, NSError.unknownError(errorCode: httpResponse.statusCode))
-                }
-            }
-            }.resume()
-        sessionTask.finishTasksAndInvalidate()
-        
-        
+        self.sessionTask(urlRequest: urlRequest, onSuccess: { (data) in
+            onSuccess(data)
+        }) { (error) in
+            onError(error)
+        }
     }
     
     
     //MARK: GET Methods
-    func getRequest(with url: URL, completionHandler: @escaping (Data?, NSError?) -> Void) -> Void {
-        
+    func getRequest(with url: URL, onSuccess:@escaping(Data)-> Void, onError:@escaping(Error)-> Void) {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "GET"
         
-        
+        self.sessionTask(urlRequest: urlRequest, onSuccess: { (data) in
+            onSuccess(data)
+        }) { (error) in
+            onError(error)
+        }
+    }
+    
+    func sessionTask(urlRequest: URLRequest, onSuccess:@escaping(Data)-> Void, onError:@escaping(Error)-> Void) {
         let sessionTask = self.getSharedSession()
         sessionTask.dataTask(with: urlRequest) { (data, response, error) in
-            
             if error != nil {
-                completionHandler(nil, NSError.serviceError(error!.localizedDescription))
+                onError(NSError.serviceError(error!.localizedDescription))
                 return
             }
             
             let httpResponse: HTTPURLResponse = response as! HTTPURLResponse
             if httpResponse.statusCode == 200 {
-                
-                completionHandler(data, nil)
-            }
-            else {
+                if let data = data {
+                    onSuccess(data)
+                } else {
+                    //return error
+                }
+            } else {
                 switch (httpResponse.statusCode) {
+                    
                 case 500:
-                    completionHandler(nil,NSError.internalServerError(errorCode: 500))
+                    onError(NSError.internalServerError(errorCode: 500))
                     break
                 default:
-                    completionHandler(nil, NSError.unknownError(errorCode: httpResponse.statusCode))
+                    onError(NSError.unknownError(errorCode: httpResponse.statusCode))
                 }
             }
-            }.resume()
+        }.resume()
         sessionTask.finishTasksAndInvalidate()
     }
+    
 }
 
 extension URLSessionManager: URLSessionDelegate {

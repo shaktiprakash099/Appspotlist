@@ -41,10 +41,8 @@ class ViewController: UIViewController {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "showitemlistVCsegue" {
-            
             let itemVC = segue.destination as! ItemsListsViewController
             itemVC.loggedInUserEmailid = sender as? String
-            
         }
     }
     

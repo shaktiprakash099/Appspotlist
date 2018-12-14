@@ -12,7 +12,7 @@ class ApiHelperClass: NSObject {
     
     static let shareinstance = ApiHelperClass()
 
-    func getAppSpotPeopleDetails(userEmailid:String ,completionHandler:@escaping(AppSpotsDetails?,Error?)->Void)->Void {
+    func getAppSpotPeopleDetails(userEmailid:String, onSuccess:@escaping(AppSpotsDetails)->Void, onError:@escaping(Error)->Void) {
         
         let url = URL(string: "\(Configuration.BASE_URL)")
         let inputParams = InputParams(emailId:userEmailid)
@@ -24,29 +24,20 @@ class ApiHelperClass: NSObject {
         do {
             jsonData = try encoder.encode(inputParams)
             print(String(data: jsonData, encoding: .utf8)!)
-        }
-        catch let error {
+        } catch let error {
             print("Error\(error)")
-            completionHandler(nil, error)
+            onError(error)
         }
-        
-        URLSessionManager.share.postRawRequest(with: url!, body: jsonData) { (data, error) in
-            
-            if error != nil {
-                completionHandler(nil,error)
+        URLSessionManager.share.postRawRequest(with: url!, body: jsonData, onSuccess: { (data) in
+            do {
+                let response = try JSONDecoder().decode(AppSpotsDetails.self, from: data)
+                onSuccess(response)
+            } catch let error {
+                print(error)
+                onError(error)
             }
-            else{
-                do {
-                    let response = try JSONDecoder().decode(AppSpotsDetails.self, from: data! as Data )
-                    completionHandler(response,error)
-                }
-                catch let error {
-                    print(error)
-                    completionHandler(nil,error)
-                }
-            }
-            
+        }) { (error) in
+            onError(error)
         }
-        
     }
 }

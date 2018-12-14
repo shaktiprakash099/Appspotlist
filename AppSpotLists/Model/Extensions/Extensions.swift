@@ -21,3 +21,17 @@ extension String {
         
     }
 }
+
+extension UIImageView {
+    func loadImage(from url: String?, placeHolder: UIImage?) {
+        self.image = placeHolder
+        if let url = url {
+            guard let url = URL(string: url) else { return }
+            
+            URLSession.shared.dataTask(with: url) { (data, response, error) in
+                guard let data = data else { return }
+                self.image = UIImage(data: data)
+            }.resume()
+        }
+    }
+}

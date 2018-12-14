@@ -14,57 +14,51 @@ class ItemsListsViewController: UIViewController {
     private var  itemLists = [ItemsDetailsLists]()
     private var dataSource:TableViewCustomDataSource<ItemsDetailsLists>?
     var loggedInUserEmailid:String?
-
+    private var error: Error? {
+        willSet(error) {
+            DispatchQueue.main.async {
+                AlertManager.shareinstance.showAlert(on: self, alertmessageTitle: "Error occured", alertmessageContent: error?.localizedDescription ?? "")
+            }
+        }
+    }
+    
     @IBOutlet weak var itemListTableview: UITableView!
     override func viewDidLoad() {
         super.viewDidLoad()
         self.itemListTableview.rowHeight = 80
         retriveLocalData()
-     
     }
     
     @IBAction func backAction(_ sender: Any) {
-    self.navigationController?.popViewController(animated: true)
+        self.navigationController?.popViewController(animated: true)
     }
     
     func retriveRemoteData(){
-        ApiHelperClass.shareinstance.getAppSpotPeopleDetails(userEmailid: loggedInUserEmailid ?? "") {[unowned self] (response, error) in
+        ApiHelperClass.shareinstance.getAppSpotPeopleDetails(userEmailid: loggedInUserEmailid ?? "", onSuccess: { [unowned self] (response) in
             DispatchQueue.main.async {
-                
                 SVProgressHUD.dismiss()
-                
-                if error != nil {
-                    
-                    AlertManager.shareinstance.showAlert(on: self, alertmessageTitle: "Error occured ", alertmessageContent: error?.localizedDescription ?? "")
-                }
-                else{
-                    
-                    self.renderTableViewdataSource(response?.items ?? [])
-                    DataManager.shareinstance.saveitemLists(with: response?.items ?? [])
-
-                }
-
+                self.renderTableViewdataSource(response.items)
+                DataManager.shareinstance.saveitemLists(with: response.items)
             }
+        }) { (error) in
+            self.error = error
         }
     }
     
     func renderTableViewdataSource(_ itemlists:[ItemsDetailsLists]){
-       
         dataSource = .displayData(for: itemlists, withCellidentifier: "ItemListsTableViewCell")
         self.itemListTableview.dataSource = dataSource
         self.itemListTableview.reloadData()
-        
     }
     
     //MARK: RetriveLocalData
     func retriveLocalData(){
-        
         guard let datalists =  DataManager.shareinstance.retriveSaveditemslists() else {
-            
             SVProgressHUD.show(withStatus: "Fetching User details")
             self.retriveRemoteData()
             return
         }
+        
         self.renderTableViewdataSource(datalists)
         DispatchQueue.global(qos: .background).async { [unowned self] in
             self.retriveRemoteData()
